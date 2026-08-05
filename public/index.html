@@ -6,7 +6,498 @@
     <title>Corporate Vendor Portal & Market Price Analyzer</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- Alpine.js --><!DOCTYPE html>
+<html lang="ku" x-data="app()" :dir="dir()">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>وەزارەتی پێشمەرگە - دەروازەی بەڕێوەبردنی نرخ و بازار</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Cairo', sans-serif; }
+        .official-header { background: linear-gradient(135deg, #4A0404 0%, #2A0202 100%); }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col justify-between">
+
+    <!-- سەرپەڕی فەرمی حکومی -->
+    <header class="official-header text-white shadow-md border-b-4 border-yellow-500 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+            <!-- لۆگۆ و ناوی وەزارەت -->
+            <div class="flex items-center space-x-3 rtl:space-x-reverse">
+                <img src="logo.jpg" alt="لۆگۆی وەزارەتی پێشمەرگە" class="w-12 h-14 object-contain bg-white/10 p-1 rounded">
+                <div>
+                    <h1 class="text-base md:text-lg font-bold tracking-wide" x-text="t('brandTitle')"></h1>
+                    <span class="text-xs text-yellow-300 font-semibold" x-text="t('brandSubtitle')"></span>
+                </div>
+            </div>
+
+            <!-- کۆنتڕۆڵ و گۆڕڕی زمان -->
+            <div class="flex items-center space-x-3 rtl:space-x-reverse">
+                <select x-model="lang" @change="changeLang($event.target.value)" class="border border-yellow-500/50 rounded px-2 py-1 text-xs md:text-sm bg-red-950 text-white focus:outline-hidden">
+                    <option value="en">English</option>
+                    <option value="ar">العربية</option>
+                    <option value="ku">کوردی</option>
+                </select>
+
+                <template x-if="user">
+                    <div class="flex items-center space-x-2 rtl:space-x-reverse bg-white/10 px-3 py-1 rounded">
+                        <span class="text-xs md:text-sm font-medium text-yellow-200" x-text="user.username"></span>
+                        <button @click="logout()" class="text-xs bg-red-700 hover:bg-red-800 text-white px-2.5 py-1 rounded transition" x-text="t('logout')"></button>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </header>
+
+    <!-- ناوەڕۆکی سەرەکی -->
+    <main class="max-w-7xl mx-auto px-4 py-8 flex-grow w-full">
+
+        <!-- دیمەنی ١: چوونەژوورەوە -->
+        <template x-if="!user">
+            <div class="max-w-md mx-auto bg-white rounded-lg shadow-md border border-slate-200 p-8 mt-10">
+                <div class="text-center mb-6">
+                    <img src="logo.jpg" alt="Logo" class="w-16 h-20 mx-auto mb-3 object-contain">
+                    <h2 class="text-xl font-bold text-red-950" x-text="isRegistering ? t('registerTitle') : t('loginTitle')"></h2>
+                    <p class="text-xs text-slate-500 mt-1">سیستەمی فەرمی بەڕێوەبردنی نرخ و پێشکەشکردن</p>
+                </div>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1" x-text="t('username')"></label>
+                        <input type="text" x-model="authForm.username" class="w-full border border-slate-300 rounded p-2.5 text-sm focus:ring-2 focus:ring-red-900 focus:outline-hidden">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1" x-text="t('password')"></label>
+                        <input type="password" x-model="authForm.password" class="w-full border border-slate-300 rounded p-2.5 text-sm focus:ring-2 focus:ring-red-900 focus:outline-hidden">
+                    </div>
+                    <button @click="authenticate()" class="w-full bg-red-950 hover:bg-red-900 text-white font-bold py-2.5 rounded shadow transition text-sm" x-text="isRegistering ? t('registerBtn') : t('loginBtn')"></button>
+                    
+                    <p class="text-center text-xs text-slate-600 mt-4">
+                        <span x-text="isRegistering ? t('hasAccount') : t('noAccount')"></span>
+                        <button @click="isRegistering = !isRegistering" class="text-red-950 font-bold hover:underline ml-1" x-text="isRegistering ? t('loginHere') : t('registerHere')"></button>
+                    </p>
+                </div>
+            </div>
+        </template>
+
+        <!-- دیمەنی ٢: پۆرتالی فرۆشیار -->
+        <template x-if="user && user.role === 'vendor'">
+            <div class="bg-white rounded-lg shadow-md border border-slate-200 p-6 md:p-8 max-w-4xl mx-auto">
+                <div class="border-b border-slate-200 pb-4 mb-6 flex justify-between items-center">
+                    <div>
+                        <h2 class="text-lg font-bold text-red-950" x-text="t('vendorPortalTitle')"></h2>
+                        <p class="text-xs text-slate-500" x-text="t('vendorPortalSubtitle')"></p>
+                    </div>
+                    <span class="bg-yellow-100 text-yellow-800 text-xs font-bold px-2.5 py-1 rounded border border-yellow-300">ڕووی فرۆشیار</span>
+                </div>
+
+                <form @submit.prevent="submitVendorData" class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs md:text-sm">
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1" x-text="t('storeName')"></label>
+                            <input type="text" x-model="vendorForm.store_name" required class="w-full border border-slate-300 rounded p-2">
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1" x-text="t('category')"></label>
+                            <select x-model="vendorForm.category" class="w-full border border-slate-300 rounded p-2 bg-white">
+                                <option value="Electronics">ئێلیکترۆنیات</option>
+                                <option value="Electrical">کارەبایی</option>
+                                <option value="Construction/Building">بیناسازی</option>
+                                <option value="Hardware">کەرەستەی سەربازی و لۆجستیکی</option>
+                                <option value="Other">هیتر</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1" x-text="t('contactNumber')"></label>
+                            <input type="text" x-model="vendorForm.contact_number" required class="w-full border border-slate-300 rounded p-2">
+                        </div>
+                        <div>
+                            <label class="block font-bold text-slate-700 mb-1" x-text="t('email')"></label>
+                            <input type="email" x-model="vendorForm.email" required class="w-full border border-slate-300 rounded p-2">
+                        </div>
+                    </div>
+
+                    <!-- خشتەی کەلوپەلەکان -->
+                    <div class="mt-6">
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="font-bold text-sm text-slate-800" x-text="t('itemMatrix')"></h3>
+                            <button type="button" @click="addItemRow()" class="bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold px-3 py-1.5 rounded transition" x-text="t('addItem')"></button>
+                        </div>
+
+                        <div class="overflow-x-auto border border-slate-200 rounded">
+                            <table class="w-full text-left border-collapse text-xs md:text-sm">
+                                <thead class="bg-slate-100 text-slate-700 uppercase font-bold text-[11px]">
+                                    <tr>
+                                        <th class="p-2.5" x-text="t('itemName')"></th>
+                                        <th class="p-2.5 w-24" x-text="t('quantity')"></th>
+                                        <th class="p-2.5 w-32" x-text="t('unitPrice')"></th>
+                                        <th class="p-2.5 w-32" x-text="t('totalPrice')"></th>
+                                        <th class="p-2.5 w-12"></th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-200">
+                                    <template x-for="(item, index) in vendorForm.items" :key="index">
+                                        <tr>
+                                            <td class="p-2">
+                                                <input type="text" x-model="item.item_name" required class="w-full border border-slate-300 rounded p-1.5 text-xs">
+                                            </td>
+                                            <td class="p-2">
+                                                <input type="number" step="any" min="0" x-model.number="item.quantity" @input="calcRow(item)" required class="w-full border border-slate-300 rounded p-1.5 text-xs">
+                                            </td>
+                                            <td class="p-2">
+                                                <input type="number" step="any" min="0" x-model.number="item.unit_price" @input="calcRow(item)" required class="w-full border border-slate-300 rounded p-1.5 text-xs">
+                                            </td>
+                                            <td class="p-2 font-bold text-slate-700">
+                                                <span x-text="(item.quantity * item.unit_price).toFixed(2)"></span>
+                                            </td>
+                                            <td class="p-2 text-center">
+                                                <button type="button" @click="removeItemRow(index)" class="text-red-600 font-bold text-base">&times;</button>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- کۆی گشتی -->
+                        <div class="flex justify-end mt-4 bg-red-50 p-3 rounded border border-red-200 items-center space-x-4 rtl:space-x-reverse">
+                            <span class="text-sm font-bold text-red-950" x-text="t('grandTotal') + ':'"></span>
+                            <span class="text-lg font-black text-red-900" x-text="grandTotal().toFixed(2)"></span>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="w-full bg-red-950 hover:bg-red-900 text-white font-bold py-3 rounded shadow transition text-sm" x-text="t('submitPortal')"></button>
+                </form>
+            </div>
+        </template>
+
+        <!-- دیمەنی ٣: داشبۆردی بەڕێوەبەر -->
+        <template x-if="user && user.role === 'admin'">
+            <div class="space-y-6">
+                <div class="flex justify-between items-center bg-white p-4 rounded-lg shadow-xs border border-slate-200">
+                    <div>
+                        <h2 class="text-xl font-bold text-red-950" x-text="t('adminDashboard')"></h2>
+                        <p class="text-xs text-slate-500" x-text="t('adminSubtitle')"></p>
+                    </div>
+                    <button @click="loadAdminData()" class="bg-red-950 text-white px-3 py-2 rounded text-xs font-bold hover:bg-red-900 transition" x-text="t('refreshData')"></button>
+                </div>
+
+                <!-- شیکاری بازاڕ -->
+                <div class="bg-white rounded-lg shadow-md border border-slate-200 p-5">
+                    <h3 class="text-base font-bold mb-3 text-red-950" x-text="t('marketAnalysis')"></h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-xs md:text-sm">
+                            <thead class="bg-slate-100 text-slate-700 uppercase font-bold text-[11px]">
+                                <tr>
+                                    <th class="p-2.5" x-text="t('itemName')"></th>
+                                    <th class="p-2.5 text-emerald-700" x-text="t('minPrice')"></th>
+                                    <th class="p-2.5 text-emerald-700" x-text="t('bestStore')"></th>
+                                    <th class="p-2.5 text-rose-700" x-text="t('maxPrice')"></th>
+                                    <th class="p-2.5 text-rose-700" x-text="t('highestStore')"></th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-200">
+                                <template x-for="row in analytics">
+                                    <tr>
+                                        <td class="p-2.5 font-bold text-slate-800" x-text="row.item_name"></td>
+                                        <td class="p-2.5 font-bold text-emerald-700" x-text="row.min_price"></td>
+                                        <td class="p-2.5 bg-emerald-50 text-emerald-900 font-medium" x-text="row.min_store"></td>
+                                        <td class="p-2.5 font-bold text-rose-700" x-text="row.max_price"></td>
+                                        <td class="p-2.5 bg-rose-50 text-rose-900 font-medium" x-text="row.max_store"></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- گشت داواکارییەکان -->
+                <div class="bg-white rounded-lg shadow-md border border-slate-200 p-5">
+                    <h3 class="text-base font-bold mb-3 text-red-950" x-text="t('allSubmissions')"></h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-xs md:text-sm">
+                            <thead class="bg-slate-100 text-slate-700 uppercase font-bold text-[11px]">
+                                <tr>
+                                    <th class="p-2.5" x-text="t('date')"></th>
+                                    <th class="p-2.5" x-text="t('storeName')"></th>
+                                    <th class="p-2.5" x-text="t('category')"></th>
+                                    <th class="p-2.5" x-text="t('contactNumber')"></th>
+                                    <th class="p-2.5" x-text="t('email')"></th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-200">
+                                <template x-for="sub in submissions">
+                                    <tr>
+                                        <td class="p-2.5 text-slate-500" x-text="sub.created_at"></td>
+                                        <td class="p-2.5 font-bold text-slate-800" x-text="sub.store_name"></td>
+                                        <td class="p-2.5" x-text="sub.category"></td>
+                                        <td class="p-2.5" x-text="sub.contact_number"></td>
+                                        <td class="p-2.5" x-text="sub.email"></td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </main>
+
+    <!-- کۆتایی پەڕە -->
+    <footer class="official-header text-white border-t border-yellow-500 py-3 text-center text-xs mt-12">
+        <p x-text="t('footerText')"></p>
+    </footer>
+
+    <!-- سکریپت -->
+    <script>
+        function app() {
+            return {
+                lang: 'ku',
+                user: JSON.parse(localStorage.getItem('user')) || null,
+                isRegistering: false,
+                authForm: { username: '', password: '' },
+                vendorForm: {
+                    store_name: '',
+                    category: 'Electronics',
+                    contact_number: '',
+                    email: '',
+                    items: [{ item_name: '', quantity: 1, unit_price: 0 }]
+                },
+                submissions: [],
+                analytics: [],
+                
+                translations: {
+                    en: {
+                        brandTitle: "Ministry of Peshmerga",
+                        brandSubtitle: "Official Vendor Portal & Market Intelligence",
+                        logout: "Logout",
+                        loginTitle: "Official Portal Sign In",
+                        registerTitle: "Vendor Account Registration",
+                        username: "Username",
+                        password: "Password",
+                        loginBtn: "Sign In",
+                        registerBtn: "Register Account",
+                        noAccount: "Don't have an account?",
+                        hasAccount: "Already have an account?",
+                        registerHere: "Register here",
+                        loginHere: "Sign in here",
+                        vendorPortalTitle: "Vendor Quotation Submission Portal",
+                        vendorPortalSubtitle: "Submit corporate exhibition/store data and item quotation details.",
+                        storeName: "Company / Store Name",
+                        category: "Product Category",
+                        contactNumber: "Contact Number",
+                        email: "Email Address",
+                        itemMatrix: "Item Specification & Price Matrix",
+                        addItem: "+ Add Item Row",
+                        itemName: "Item Name",
+                        quantity: "Quantity",
+                        unitPrice: "Unit Price",
+                        totalPrice: "Total Price",
+                        grandTotal: "Grand Total Sum",
+                        submitPortal: "Submit Official Quotation",
+                        adminDashboard: "Ministry Admin Dashboard",
+                        adminSubtitle: "Monitor competitor pricing and market analysis reports",
+                        refreshData: "Refresh Data",
+                        marketAnalysis: "Market Competitiveness Analysis (Min/Max Pricing)",
+                        minPrice: "Min Unit Price",
+                        bestStore: "Lowest Store Name",
+                        maxPrice: "Max Unit Price",
+                        highestStore: "Highest Store Name",
+                        allSubmissions: "Recent Vendor Submissions Log",
+                        date: "Date & Time",
+                        footerText: "© 2026 Ministry of Peshmerga - Kurdistan Regional Government. All Rights Reserved."
+                    },
+                    ar: {
+                        brandTitle: "وزارة البشمركة",
+                        brandSubtitle: "بوابة الموردين الرسمية وتحليلات السوق",
+                        logout: "تسجيل الخروج",
+                        loginTitle: "تسجيل الدخول للنظام الرسمي",
+                        registerTitle: "تسجيل حساب مورد جديد",
+                        username: "اسم المستخدم",
+                        password: "كلمة المرور",
+                        loginBtn: "دخول",
+                        registerBtn: "إنشاء حساب",
+                        noAccount: "ليس لديك حساب؟",
+                        hasAccount: "لديك حساب بالفعل؟",
+                        registerHere: "سجل هنا",
+                        loginHere: "سجل دخولك هنا",
+                        vendorPortalTitle: "بوابة تقديم عروض أسعار الموردين",
+                        vendorPortalSubtitle: "أدخل تفاصيل الشركة وبيانات تسعير المنتجات الرسمية.",
+                        storeName: "اسم الشركة / المتجر",
+                        category: "فئة المنتج",
+                        contactNumber: "رقم الاتصال",
+                        email: "البريد الإلكتروني",
+                        itemMatrix: "جدول المواصفات والأسعار",
+                        addItem: "+ إضافة عنصر",
+                        itemName: "اسم المادة",
+                        quantity: "الكمية",
+                        unitPrice: "سعر الوحدة",
+                        totalPrice: "المجموع الكلي",
+                        grandTotal: "المجموع النهائي",
+                        submitPortal: "إرسال العرض رسمياً",
+                        adminDashboard: "لوحة تحكم الوزارة",
+                        adminSubtitle: "مراقبة أسعار المنافسين وتقارير التحليل المالي",
+                        refreshData: "تحديث البيانات",
+                        marketAnalysis: "تحليل تنافسية السوق (أقل وأعلى الأسعار)",
+                        minPrice: "أقل سعر للوحدة",
+                        bestStore: "المتجر الأقل سعراً",
+                        maxPrice: "أعلى سعر للوحدة",
+                        highestStore: "المتجر الأعلى سعراً",
+                        allSubmissions: "سجل تقديمات الموردين الأخيرة",
+                        date: "التاريخ والوقت",
+                        footerText: "© 2026 وزارة البشمركة - حكومة إقليم كوردستان. جميع الحقوق محفوظة."
+                    },
+                    ku: {
+                        brandTitle: "وەزارەتی پێشمەرگە",
+                        brandSubtitle: "دەروازەی فەرمی فرۆشیاران و شیکاری بازاڕ",
+                        logout: "چوونەدەرەوە",
+                        loginTitle: "چوونەژوورەوە بۆ سیستەمی فەرمی",
+                        registerTitle: "تۆمارکردنی هەژماری فرۆشیار",
+                        username: "ناوی بەکارهێنەر",
+                        password: "وشەی نهێنی",
+                        loginBtn: "چوونەژوورەوە",
+                        registerBtn: "تۆمارکردنی هەژمار",
+                        noAccount: "هەژمارت نییە؟",
+                        hasAccount: "پێشتر هەژمارت هەیە؟",
+                        registerHere: "لێرە تۆمار بکە",
+                        loginHere: "لێرە بچۆ ژوورەوە",
+                        vendorPortalTitle: "پۆرتالی پێشکەشکردنی نرخی فرۆشیاران",
+                        vendorPortalSubtitle: "زانیاری کۆمپانیا/دووکان و خشتەی نرخەکان بە شێوازی فەرمی پڕبکەرەوە.",
+                        storeName: "ناوی کۆمپانیا / دووکان / پێشانگا",
+                        category: "پۆلێنی بەرهەم",
+                        contactNumber: "ژمارەی پەیوەندی",
+                        email: "ئیمەیل",
+                        itemMatrix: "خشتەی بەرهەم و نرخەکان",
+                        addItem: "+ زیادکردنی بڕگە",
+                        itemName: "ناوی شتومەک",
+                        quantity: "دانە / بڕ",
+                        unitPrice: "نرخی تاک",
+                        totalPrice: "کۆی گشتی",
+                        grandTotal: "کۆی کۆیان",
+                        submitPortal: "ناردنی نرخەکان بە شێوازی فەرمی",
+                        adminDashboard: "داشبۆردی بەڕێوەبەری وەزارەت",
+                        adminSubtitle: "چاودێریکردنی نرخی ڕکابەرەکان و ڕاپۆرتی شیکاری بازار",
+                        refreshData: "نوێکردنەوەی زانیاری",
+                        marketAnalysis: "شیکاری کێبڕکێی بازاڕ (کەمترین و زۆرترین نرخ)",
+                        minPrice: "کەمترین نرخی تاک",
+                        bestStore: "ناوی هەرزانترین فرۆشیار",
+                        maxPrice: "زۆرترین نرخی تاک",
+                        highestStore: "ناوی گرانترین فرۆشیار",
+                        allSubmissions: "تۆمارەکانی پێشووی فرۆشیاران",
+                        date: "رێکەوت و کات",
+                        footerText: "© 2026 وەزارەتی پێشمەرگە - حکومەتی هەرێمی کوردستان. هەموو مافەکان پارێزراون."
+                    }
+                },
+
+                t(key) {
+                    return this.translations[this.lang][key] || key;
+                },
+
+                dir() {
+                    return (this.lang === 'ar' || this.lang === 'ku') ? 'rtl' : 'ltr';
+                },
+
+                changeLang(newLang) {
+                    this.lang = newLang;
+                },
+
+                addItemRow() {
+                    this.vendorForm.items.push({ item_name: '', quantity: 1, unit_price: 0 });
+                },
+
+                removeItemRow(index) {
+                    if (this.vendorForm.items.length > 1) {
+                        this.vendorForm.items.splice(index, 1);
+                    }
+                },
+
+                calcRow(item) {
+                    if(item.quantity < 0) item.quantity = 0;
+                    if(item.unit_price < 0) item.unit_price = 0;
+                },
+
+                grandTotal() {
+                    return this.vendorForm.items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+                },
+
+                async authenticate() {
+                    try {
+                        const action = this.isRegistering ? 'register' : 'login';
+                        const res = await fetch('/api/auth', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ ...this.authForm, action })
+                        });
+                        const data = await res.json();
+                        if (res.ok) {
+                            this.user = { username: this.authForm.username, role: data.role || 'vendor' };
+                            localStorage.setItem('user', JSON.stringify(this.user));
+                            if (this.user.role === 'admin') this.loadAdminData();
+                        } else {
+                            alert(data.error);
+                        }
+                    } catch (e) {
+                        alert('هەڵە لە پەیوەندیکردن بە سێرڤەر.');
+                    }
+                },
+
+                logout() {
+                    this.user = null;
+                    localStorage.removeItem('user');
+                },
+
+                async submitVendorData() {
+                    try {
+                        const res = await fetch('/api/submissions', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(this.vendorForm)
+                        });
+                        if (res.ok) {
+                            alert('نرخەکان بە سەرکەوتوویی بۆ وەزارەت نێردران!');
+                            this.vendorForm = {
+                                store_name: '',
+                                category: 'Electronics',
+                                contact_number: '',
+                                email: '',
+                                items: [{ item_name: '', quantity: 1, unit_price: 0 }]
+                            };
+                        } else {
+                            alert('هەڵە لە پاشەکەوتکردندا.');
+                        }
+                    } catch (e) {
+                        alert('هەڵەی سێرڤەر.');
+                    }
+                },
+
+                async loadAdminData() {
+                    try {
+                        const res = await fetch('/api/admin/analytics');
+                        const data = await res.json();
+                        if (res.ok) {
+                            this.submissions = data.submissions;
+                            this.analytics = data.analytics;
+                        }
+                    } catch (e) {
+                        console.error('هەڵە لە بارکردنی زانیاری داشبۆرد.');
+                    }
+                },
+
+                init() {
+                    if (this.user && this.user.role === 'admin') {
+                        this.loadAdminData();
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
